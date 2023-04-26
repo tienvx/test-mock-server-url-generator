@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 
 import { Client } from './client';
 
-const { eachLike, url2 } = MatchersV3;
+const { like, eachLike, url2 } = MatchersV3;
 
 const provider = new PactV3({
     dir: `${__dirname}/../pacts`,
@@ -31,17 +31,37 @@ describe('GET /urls', () => {
                     })
                 },
             });
+        provider
+            .given('I have a url http://provider.com/example/path')
+            .uponReceiving('a request the url http://provider.com/example/path')
+            .withRequest({
+                method: 'GET',
+                path: '/example/path',
+                headers: { Accept: 'application/json' },
+            })
+            .willRespondWith({
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+                body: {
+                    key: like('value')
+                },
+            });
+
 
         await provider.executeTest(async (mockserver: V3MockServer) => {
             const client = new Client(mockserver.url);
-            const response = await client.getUrls()
-
+            let response = await client.getUrls()
             expect(response).to.deep.eq({
                 urls: [
                     {
                         url: `${mockserver.url}/example/path`
                     }
                 ]
+            });
+
+            response = await client.requestUrl(response.urls[0].url);
+            expect(response).to.deep.eq({
+                key: 'value'
             });
         });
     });
